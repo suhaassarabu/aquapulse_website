@@ -3,7 +3,7 @@
 A brief description of what this project does and who it's for. Make it catchy and informative!
 
 ## 🌐 Live Demo
-[View Live Site Here]((https://aquapulse-project.netlify.app/))
+[View Live Site Here](https://aquapulse-project.netlify.app/)
 
 ## ✨ Features
 * **Feature 1:** Briefly describe a core feature (e.g., Fully responsive design across all devices).
