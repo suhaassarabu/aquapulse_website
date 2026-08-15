@@ -48,6 +48,6 @@ Contributions, issues, and feature requests are welcome!
 Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 📬 Contact
-Your Name - [@your_twitter](https://twitter.com/your_twitter) - email@example.com
+Your Name - [@your_linkedin](https://www.linkedin.com/in/suhaas-sarabu-5a52773ab/) - suhaas.sarabu@gmail.com
 
 Project Link: [https://github.com/suhaassarabu/aquapulse_website](https://github.com/suhaassarabu/aquapulse_website)
