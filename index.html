@@ -148,22 +148,92 @@
 			let zapierScriptLoaded = false;
 			let zapierEmbedCreated = false;
 
-			form.addEventListener('submit', (e)=>{
+			form.addEventListener('submit', async (e)=>{
 				e.preventDefault();
+				const submitBtn = form.querySelector('button[type=submit]');
 				const email = emailInput.value.trim();
+				// try to find a name field if present
+				const nameInput = form.querySelector('input[name="name"]') || document.querySelector('input[name="name"]') || document.getElementById('name');
+				const name = nameInput ? (nameInput.value || '').trim() : '';
 				if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
 					msg.textContent = 'Please enter a valid email address.';
 					msg.style.color = 'crimson';
 					emailInput.focus();
 					return;
 				}
-				// Simulate successful signup
-				msg.textContent = 'Thanks — check your inbox for confirmation!';
-				msg.style.color = 'var(--accent-700)';
-				form.reset();
-				// After successful signup, automatically load and show the automation
-				openWorkflow();
+				// disable while sending
+				submitBtn.disabled = true;
+				msg.textContent = 'Sending...';
+				msg.style.color = 'var(--muted)';
+				try{
+					await sendToZapier(email, name);
+					msg.textContent = 'Thanks — we received your request!';
+					msg.style.color = 'var(--accent-700)';
+					form.reset();
+					// After successful signup, automatically load and show the automation
+					openWorkflow();
+				}catch(err){
+					console.error(err);
+					msg.textContent = 'Submission failed: ' + (err && err.message ? err.message : err);
+					msg.style.color = 'crimson';
+				}finally{
+					submitBtn.disabled = false;
+				}
 			});
+
+			/**
+			 * Send signup data to Zapier webhook. Tries a standard JSON POST (CORS),
+			 * falls back to a no-cors form POST, and finally to navigator.sendBeacon.
+			 * Resolves on assumed success, rejects on clear failure.
+			 */
+			async function sendToZapier(email, name){
+				const webhook = 'https://hooks.zapier.com/hooks/catch/28544416/4t4bfx8/';
+				const payload = { email: email, name: name || '' };
+
+				// First try: typical CORS JSON POST
+				try{
+					const res = await fetch(webhook, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(payload),
+						mode: 'cors'
+					});
+					if(!res.ok){
+						throw new Error('Server responded with ' + res.status);
+					}
+					return res;
+				}catch(err){
+					// If fetch failed due to CORS or network, attempt no-cors fallback
+					console.warn('JSON POST failed, attempting no-cors fallback:', err);
+					try{
+						// Browser will perform an opaque POST; we cannot read the response.
+						await fetch(webhook, {
+							method: 'POST',
+							mode: 'no-cors',
+							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+							body: new URLSearchParams(payload).toString()
+						});
+						// Assume success for no-cors
+						return;
+					}catch(err2){
+						console.warn('no-cors POST failed, trying sendBeacon:', err2);
+						// Final fallback: navigator.sendBeacon (fire-and-forget)
+						try{
+							if(navigator && navigator.sendBeacon){
+								const blob = new Blob([JSON.stringify(payload)], {type: 'application/json'});
+								const ok = navigator.sendBeacon(webhook, blob);
+								if(ok) return;
+								throw new Error('sendBeacon failed');
+							} else {
+								throw new Error('sendBeacon not available');
+							}
+						}catch(err3){
+							// All attempts failed — bubble the last error
+							throw err3 || err2 || err;
+						}
+					}
+				}
+			}
 
 			function loadZapierScript(){
 				return new Promise((resolve, reject)=>{
@@ -195,9 +265,13 @@
 					embedContainer.scrollIntoView({behavior:'smooth',block:'center'});
 				}catch(err){
 					console.error(err);
-					msg.textContent = 'Unable to load automation right now.';
+					msg.textContent = 'Unable to load automation: ' + (err && err.message ? err.message : err);
 					msg.style.color = 'crimson';
-				}
+					// Hint if likely running from file://
+					if(location.protocol === 'file:'){
+						msg.textContent += ' (If you opened this file directly, try serving it over HTTP — e.g. `python -m http.server` or use Live Server.)';
+					}
+					}
 			}
 
 			// Spotlight following mouse/touch
